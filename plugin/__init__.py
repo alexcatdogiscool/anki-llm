@@ -5,7 +5,6 @@ from anki import hooks
 from anki.template import TemplateRenderContext, TemplateRenderOutput
 from aqt.utils import tooltip
 import sqlite3
-from git import Repo
 import os
 from . import git_utils
 
@@ -128,13 +127,10 @@ def render_new(
 
 
 
-def sync_cloud():
-    commit_changes(repo)
-    push_to_origin(repo)
-
 
 
 hooks.card_did_render.append(render_new)
 
-gui_hooks.reviewer_will_end(sync_cloud)
+gui_hooks.reviewer_will_end.append(sync_cloud)
+gui_hooks.profile_will_close.append(sync_cloud)
 
