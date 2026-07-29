@@ -1,0 +1,10 @@
+sqlite> SELECT id, name FROM decks;
+id             name
+-------------  --------------------
+1              mandarin core
+1780897928109  comp vis
+1780912686989  comp vis 2
+1783246160167  textbook hanzi
+1783937948289  Custom Study Session
+sqlite>
+
