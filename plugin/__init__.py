@@ -3,9 +3,56 @@ from aqt import gui_hooks
 from anki.cards import Card
 from anki import hooks
 from anki.template import TemplateRenderContext, TemplateRenderOutput
+from aqt.utils import tooltip
 import sqlite3
+from git import Repo
+import os
+from . import git_utils
 
-DATABASE_PATH = "/home/alex/Desktop/programming/anki-plugin/llm/sentences.db"
+
+# cloud sync stuff
+
+addon_dir = os.path.dirname(__file__)
+DATABASE_PATH = os.path.join(addon_dir, "db", "sentences.db")
+REPO_PATH = os.path.join(addon_dir, "db")
+ 
+repo_ready = False
+
+def init_repo():
+    global repo_ready
+    if not git_utils.is_git_repo(REPO_PATH):
+        print(f"[llm-addon] {REPO_PATH} is not a git repo, sync disabled")
+        return
+ 
+    try:
+        git_utils.pull(REPO_PATH)
+        repo_ready = True
+    except git_utils.GitError as e:
+        # Don't crash addon load just because we couldn't pull (e.g. offline).
+        # We can still use the local DB as-is.
+        print(f"[llm-addon] pull failed, continuing with local db: {e}")
+        repo_ready = True
+ 
+ 
+def sync_cloud():
+    if not repo_ready:
+        return
+ 
+    try:
+        git_utils.add_all(REPO_PATH)
+        if git_utils.has_changes(REPO_PATH):
+            git_utils.commit(REPO_PATH, "changes updates")
+            git_utils.push(REPO_PATH)
+            print("[llm-addon] pushed successfully")
+        else:
+            print("[llm-addon] nothing to push")
+    except git_utils.GitError as e:
+        print(f"[llm-addon] sync failed: {e}")
+        tooltip(f"llm-addon: cloud sync failed ({e})")
+
+## db stuff
+
+init_repo()
 
 conn = sqlite3.connect(DATABASE_PATH)
 cur = conn.cursor()
@@ -38,7 +85,7 @@ def get_db_entries(word):
     return None
 
 def select_and_dirty(options: list) -> tuple:
-    entry = options[1]
+    entry = options[0]
 
     cur.execute(
         "UPDATE sentences SET dirty = 1 WHERE id = ?",
@@ -78,10 +125,16 @@ def render_new(
     answer += "English: " + result[5]
 
     output.answer_text = answer
-    
-    
+
+
+
+def sync_cloud():
+    commit_changes(repo)
+    push_to_origin(repo)
 
 
 
 hooks.card_did_render.append(render_new)
+
+gui_hooks.reviewer_will_end(sync_cloud)
 

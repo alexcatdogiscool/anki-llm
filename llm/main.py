@@ -1,6 +1,6 @@
 from ollama import generate
 import sqlite3
-from db import init_db, replenish, purge_dirty
+from db import init_db, replenish, purge_dirty, init_repo, pull_latest, commit_changes, push_to_origin
 import json
 import postproc
 from pydantic import BaseModel
@@ -100,7 +100,10 @@ def save_failed_log(failed_words):
         json.dump(failed_words, f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
-    
+
+
+    repo = init_repo()
+    pull_latest(repo)
 
     
     init_db()
@@ -157,5 +160,8 @@ if __name__ == "__main__":
         
     if failed_words:
         save_failed_log(failed_words)
+
+    commit_changes(repo)
+    push_to_origin(repo)
 
     
