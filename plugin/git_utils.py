@@ -1,6 +1,12 @@
 import os
 import subprocess
 
+ssh_key_path = os.path.expanduser("~/.ssh/id_ed25519")
+ssh_cmd = f"ssh -i {ssh_key_path} -o StrictHostKeyChecking=no"
+custom_env = os.environ.copy()
+custom_env["GIT_SSH_COMMAND"] = ssh_cmd
+
+
 
 def _in_flatpak_sandbox() -> bool:
     return os.path.exists("/.flatpak-info")
@@ -26,6 +32,7 @@ def run_git(*args, cwd, timeout=30):
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=custom_env,
         )
     except FileNotFoundError:
         raise GitError(
@@ -54,7 +61,9 @@ def is_git_repo(path) -> bool:
 
 
 def pull(path):
-    return run_git("pull", cwd=path)
+    #"git stash --include-untracked"
+    run_git("reset", "--hard", "origin/master", cwd=path)
+    return run_git("pull", "origin", "master", cwd=path)
 
 
 def add_all(path):
@@ -71,4 +80,4 @@ def commit(path, message):
 
 
 def push(path):
-    return run_git("push", cwd=path)
+    return run_git("push", "origin", "master", cwd=path)
