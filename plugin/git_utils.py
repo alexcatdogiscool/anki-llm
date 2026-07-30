@@ -12,9 +12,9 @@ def _in_flatpak_sandbox() -> bool:
     return os.path.exists("/.flatpak-info")
 
 
-def _git_base_cmd():
+def _git_base_cmd(cwd):
     if _in_flatpak_sandbox():
-        return ["flatpak-spawn", "--host", "git"]
+        return ["flatpak-spawn", "--host", f"--directory={cwd}", "git"]
     return ["git"]
 
 
@@ -24,7 +24,7 @@ class GitError(Exception):
 
 def run_git(*args, cwd, timeout=30):
     """Run a git command in `cwd`, returning stdout. Raises GitError on failure."""
-    cmd = _git_base_cmd() + list(args)
+    cmd = _git_base_cmd(cwd) + list(args)
     try:
         result = subprocess.run(
             cmd,
@@ -52,11 +52,13 @@ def run_git(*args, cwd, timeout=30):
 
 def is_git_repo(path) -> bool:
     if not os.path.isdir(os.path.join(path, ".git")):
+        print(f"[git_utils] no .git dir found at {path}")
         return False
     try:
         run_git("rev-parse", "--is-inside-work-tree", cwd=path)
         return True
-    except GitError:
+    except GitError as e:
+        print(f"[git_utils] rev-parse check failed: {e}")
         return False
 
 
