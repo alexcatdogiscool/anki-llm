@@ -1,7 +1,6 @@
 import sqlite3
 import random
 from contextlib import contextmanager
-from git import Repo
 
 DB_PATH = "/home/alex/Desktop/programming/anki-plugin/llm/db/sentences.db"
 
@@ -151,28 +150,3 @@ def replenish(word, generate_fn, target_pool_size=5, db_path=DB_PATH):
 
 REPO_PATH = "/home/alex/Desktop/programming/anki-plugin/llm/db/"
 
-
-def init_repo():
-    try:
-        repo = Repo(REPO_PATH)
-        return repo
-    except Exception as e:
-        print(f"couldn't open the repo at: {REPO_PATH} ({e})")
-        exit()
-
-
-def pull_latest(repo: Repo):
-    origin = repo.remote("origin")
-    info = origin.pull()
-    return info
-
-
-def commit_changes(repo: Repo):
-    repo.git.add(A=True)
-    repo.index.commit("changes updates")
-
-
-def push_to_origin(repo: Repo):
-    origin = repo.remote("origin")
-    push_info = origin.push()
-    print("pushed succesfully")

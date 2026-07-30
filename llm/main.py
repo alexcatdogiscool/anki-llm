@@ -4,6 +4,11 @@ from db import init_db, replenish, purge_dirty, init_repo, pull_latest, commit_c
 import json
 import postproc
 from pydantic import BaseModel
+import git_utils
+import os
+
+REPO_PATH = os.path.join(".", "db")
+repo_ready = False
 
 PROMPT_PATH = "/home/alex/Desktop/programming/anki-plugin/llm/prompt.txt"
 ANKI_PATH = "/home/alex/.var/app/net.ankiweb.Anki/data/Anki2/User 1/collection.anki2"
@@ -99,13 +104,46 @@ def save_failed_log(failed_words):
     with open(FAILED_LOG_PATH, "w") as f:
         json.dump(failed_words, f, ensure_ascii=False, indent=2)
 
+
+def init_repo():
+    global repo_ready
+    if not git_utils.is_git_repo(REPO_PATH):
+        print(f"[llm-addon] {REPO_PATH} is not a git repo, sync disabled")
+        return
+ 
+    try:
+        git_utils.pull(REPO_PATH)
+        repo_ready = True
+    except git_utils.GitError as e:
+        # Don't crash addon load just because we couldn't pull (e.g. offline).
+        # We can still use the local DB as-is.
+        print(f"[llm-addon] pull failed, continuing with local db: {e}")
+        repo_ready = True
+ 
+ 
+def sync_cloud():
+    if not repo_ready:
+        return
+ 
+    try:
+        git_utils.add_all(REPO_PATH)
+        if git_utils.has_changes(REPO_PATH):
+            git_utils.commit(REPO_PATH, "changes updates")
+            git_utils.push(REPO_PATH)
+            print("[llm-addon] pushed successfully")
+        else:
+            print("[llm-addon] nothing to push")
+    except git_utils.GitError as e:
+        print(f"[llm-addon] sync failed: {e}")
+
 if __name__ == "__main__":
 
 
-    repo = init_repo()
-    pull_latest(repo)
-
+    ## cloud sync
+    init_repo()    
     
+    # sql db
+
     init_db()
     
 
@@ -161,7 +199,6 @@ if __name__ == "__main__":
     if failed_words:
         save_failed_log(failed_words)
 
-    commit_changes(repo)
-    push_to_origin(repo)
-
+    # sync to cloud
+    sync_cloud()
     
